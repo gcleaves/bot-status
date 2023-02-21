@@ -1,7 +1,12 @@
 async function processData() {
   const results = {};
-  const allRows = await Entry.find().sort(['domain','bot']);
-  const domains = [...new Set(allRows.map(i=>i.domain))];
+  const allRows = await Entry.find({
+    or: [
+      {deletedAt: null},
+      {deletedAt: 0}
+    ]
+  }).sort(['domain','bot']);
+  const domains = [...new Set(allRows.map(i=>i.domain))]; // get unique list of domains
   const bots = ['tdt', 'monitor', 'detection'];
   for(const domain of domains) {
     results[domain] = {notes: []};
@@ -28,17 +33,22 @@ module.exports = {
     return res.json(allRecords);
   },
   post: async function (req, res) {
+    if(!req.body.domain) return res.badRequest('Missing domain');
+    if(!req.body.bot) return res.badRequest('Missing bot');
+    if(!req.body.alert) return res.badRequest('Missing alert');
     const existing = await Entry.findOne({
       domain: req.body.domain,
       bot: req.body.bot,
       alert: req.body.alert
     });
     if(existing) {
+      if(existing.severity===req.body.severity && existing.note===req.body.note) {
+        return res.ok('Duplicate alert, no action.');
+      }
       await Entry.updateOne({id: existing.id})
-        .set(req.body);
-    } else {
-      await Entry.create(req.body);
-    }
+        .set({deletedAt: Date.now()});
+    } 
+    await Entry.create(req.body);
     return res.ok();
   },
   status: async function (req, res) {

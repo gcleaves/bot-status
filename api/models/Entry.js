@@ -15,5 +15,6 @@ module.exports = {
       min: 0,
       max: 10
     },
+    deletedAt: { type: 'number', columnType: 'bigint', allowNull: true}
   },
 };
